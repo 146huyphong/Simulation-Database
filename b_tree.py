@@ -23,7 +23,8 @@ class BTreeNode:
 class BTree:
     def __init__(self, t = 3):
         self.root = BTreeNode(leaf=True)
-        self.t = t  
+        self.max_keys = t - 1
+        self.min_keys = self.max_keys >> 1
 
     def search(self, key, node=None):
         if node is None:
@@ -41,8 +42,42 @@ class BTree:
         
         return self.search(key, node.children[i])
     
+    def insert(self, key, offset):
+        split_data = self.insert_non_full(self.root, key, offset)
+
+        if split_data is not None:
+            new_root = BTreeNode(leaf=False)
+            new_root.keys = [split_data['key']]
+            new_root.offsets = [split_data['offset']]
+            new_root.children = [self.root, split_data['right_node']]
+            self.root = new_root
+
+    
+    
+    def _insert_non_full(self, node, key, offset):
+        i = 0
+        while i < len(node.keys) and key > node.keys[i]:
+            i += 1
+
+        if node.leaf:
+            node.keys.insert(i, key)
+            node.offsets.insert(i, offset)
+        else:
+            split_data = self._insert_non_full(node.children[i], key, offset)
+
+            if split_data is not None:
+                node.keys.insert(i, split_data['key'])
+                node.offsets.insert(i, split_data['offset'])
+                node.children.insert(i + 1, split_data['right_node'])
+
+        if len(node.keys) > self.max_keys:
+            return self._split_node(node)
+        
+        return None
+
+
     def _split_node(self, node):
-        mid_index = self.m << 1
+        mid_index = self.max_keys >> 1
 
         mid_key = node.keys[mid_index]
         mid_offset = node.offsets[mid_index]
@@ -64,32 +99,104 @@ class BTree:
             'right_node': right_node
         }
 
-    def insert_non_full(self, node, key, offset):
+    def delete(self, key):
+        if not self.root.keys:
+            return False
+
+        is_deleted = self._delete_recurive(self.root, key)      
+
+        if len(self.root.keys) == 0 and not self.root.leaf:
+            self.root = self.root.children[0]
+
+        return is_deleted  
+
+    def _delete_recursive(self, node, key):
         i = 0
         while i < len(node.keys) and key > node.keys[i]:
             i += 1
 
-        if node.leaf:
-            node.keys.insert(i, key)
-            node.offsets.insert(i, offset)
+        if i < len(node.keys) and key == node.keys[i]:
+            if node.leaf:
+                node.keys.pop(i)
+                node.offsets.pop(i)
+                return True
+            else:
+                pred_node = self._get_max_node(node.children[i])
+                pred_key = pred_node.keys[-1]
+                pred_offset = pred_node.offsets[-1]
+
+                node.keys[i] = pred_key
+                node.offsets[i] = pred_offset
+
+                is_deleted = self._delete_recursive(node.children[i], pred_key)
         else:
-            split_data = self.insert_non_full(node.children[i], key, offset)
+            if node.leaf:
+                return False
+            
+            is_deleted = self._delete_recursive(node.children[i], key)
 
-            if split_data is not None:
-                node.keys.insert(i, split_data['key'])
-                node.offsets.insert(i, split_data['offset'])
-                node.children.insert(i + 1, split_data['new_node'])
+        if not node.leaf and len(node.children[i].keys) < self.min_keys:
+            node._fix_underflow(node, i)
 
-        if len(node.keys) == self.m:
-            return self._split_node(node)
+        return is_deleted
+    
+    def _get_max_node(self, node):
+        current = node
+
+        while not current.leaf:
+            current = current.children[-1]
+        return current
+    
+    def _fix_underflow(self, parent, index):
+        child = parent.children[index]
+
+        if index > 0 and len(parent.children[index - 1].keys) > self.min_keys:
+            left_sibling = parent.children[index - 1]
+            
+            child.keys.insert(0, parent.keys[index - 1])
+            child.offsets.insert(0, parent.offsets[index - 1])
+            
+            parent.keys[index - 1] = left_sibling.keys.pop(-1)
+            parent.offsets[index - 1] = left_sibling.offsets.pop(-1)
+
+            if not child.leaf:
+                child.children.insert(0, left_sibling.children.pop(-1))
+
+            return
         
-        return None
+        if index < len(parent.children) - 1 and len(parent.children[index + 1].keys) > self.min_keys:
+            right_sibling = parent.children[index + 1]
 
-    def insert(self, key, offset):
-        split_data = self.insert_non_full(self.root, key, offset)
+            child.keys.append(parent.keys[index])
+            child.offsets.append(parent.offsets[index])
 
-    def delete(self, key):
-        pass
+            parent.keys[index] = right_sibling.keys.pop(0)
+            parent.offsets[index] = right_sibling.offsets.pop(0)
+
+            if not child.leaf:
+                child.children.append(right_sibling.children.pop(0))
+            
+            return 
+        
+        if index > 0:
+            self._merge_nodes(parent, index - 1)
+        else:
+            self._merge_nodes(parent, index)
+
+    def _merge_nodes(self, parent, index):  
+        left_child = parent.children[index]
+        right_child = parent.children[index + 1]
+
+        left_child.keys.append(parent.keys[index])
+        left_child.offsets.append(parent.offsets[index])
+
+        left_child.keys.extend(right_child.keys)
+        left_child.offsets.extend(right_child.offsets)
+
+        if not left_child.leaf:
+            left_child.children.extend(right_child.children)
+
+        parent.keys.pop(index + 1)
 
     def get_tree_state(self):
         pass
