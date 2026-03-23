@@ -1,4 +1,4 @@
-const API_URL = "https://simulation-database.onrender.com/api";
+const API_URL = "http://127.0.0.1:5000/api";
 
 // Hàm chạy ngay khi web load xong
 document.addEventListener("DOMContentLoaded", () => {
@@ -84,7 +84,7 @@ async function searchStudent() {
 // ==========================================
 
 async function renderTree() {
-    const res = await fetch(`${API_URL}/tree/id`);
+    const res = await fetch(`${API_URL}/btree/id`);
     const treeData = await res.json();
 
     // Xóa cây cũ nếu có

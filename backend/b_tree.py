@@ -3,8 +3,8 @@ class Student:
         self.student_id = student_id
         self.name = name
         self.gender = gender
-        self.staus = 'active'
-    
+        self.stauts = 'active'
+        self.is_deleted = False
 
     def to_dict(self):
         return {
@@ -93,21 +93,25 @@ class BTree:
 
 
     def _split_node(self, node):
-        mid_index = (len(node.keys)) >> 1
+        mid_index = len(node.keys) >> 1
 
         mid_key = node.keys[mid_index]
         mid_offset = node.offsets[mid_index]
 
         right_node = BTreeNode(leaf=node.leaf)
+        
+        # 1. Chép dữ liệu cho Nút Phải (từ sau mid_index đến hết)
         right_node.keys = node.keys[mid_index + 1:]
         right_node.offsets = node.offsets[mid_index + 1:]
 
         if not node.leaf:
             right_node.children = node.children[mid_index + 1:]
-            node.children = node.children[:mid_index + 1]
+            node.children = node.children[:mid_index + 1] # Cắt nhánh con của cha
         
-        node.keys = node.keys[:mid_index]
-        node.offsets = node.offsets[:mid_index]
+        # 2. Cắt bỏ dữ liệu của Nút Trái (Nút hiện tại)
+        # SỬA LẠI ĐỂ AN TOÀN HƠN: Dùng del thay vì gán lại mảng
+        del node.keys[mid_index:]
+        del node.offsets[mid_index:]
 
         return {
             'key': mid_key,
