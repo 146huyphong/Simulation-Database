@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:5000/api";
+const API_URL = "https://simulation-database.onrender.com/api";
 
 // Hàm chạy ngay khi web load xong
 document.addEventListener("DOMContentLoaded", () => {
