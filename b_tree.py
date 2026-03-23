@@ -1,8 +1,9 @@
 class Student:
-    def __int__(self, student_id, name, gender):
+    def __init__(self, student_id, name, gender):
         self.student_id = student_id
         self.name = name
         self.gender = gender
+        self.staus = 'active'
     
 
     def to_dict(self):
@@ -19,6 +20,21 @@ class BTreeNode:
         self.keys = []
         self.offsets = []
         self.children = []
+
+    def to_dict(self):
+        keys_str = ",".join(str(k) for k in self.keys)
+
+        node_dict = {
+            "name": f"[{keys_str}]",
+            "keys": self.keys,
+            "offsets": self.offsets,
+            "leaf": self.leaf,
+        }
+
+        if not self.leaf and self.children:
+            node_dict["children"] = [child.to_dict() for child in self.children]
+        
+        return node_dict
 
 class BTree:
     def __init__(self, t = 3):
@@ -43,7 +59,7 @@ class BTree:
         return self.search(key, node.children[i])
     
     def insert(self, key, offset):
-        split_data = self.insert_non_full(self.root, key, offset)
+        split_data = self._insert_non_full(self.root, key, offset)
 
         if split_data is not None:
             new_root = BTreeNode(leaf=False)
@@ -77,18 +93,18 @@ class BTree:
 
 
     def _split_node(self, node):
-        mid_index = self.max_keys >> 1
+        mid_index = (len(node.keys)) >> 1
 
         mid_key = node.keys[mid_index]
         mid_offset = node.offsets[mid_index]
 
         right_node = BTreeNode(leaf=node.leaf)
         right_node.keys = node.keys[mid_index + 1:]
-        right_node.offsets = node.offsets[:mid_index]
+        right_node.offsets = node.offsets[mid_index + 1:]
 
         if not node.leaf:
             right_node.children = node.children[mid_index + 1:]
-            node.children = node.childre[:mid_index + 1]
+            node.children = node.children[:mid_index + 1]
         
         node.keys = node.keys[:mid_index]
         node.offsets = node.offsets[:mid_index]
@@ -103,7 +119,7 @@ class BTree:
         if not self.root.keys:
             return False
 
-        is_deleted = self._delete_recurive(self.root, key)      
+        is_deleted = self._delete_recursive(self.root, key)      
 
         if len(self.root.keys) == 0 and not self.root.leaf:
             self.root = self.root.children[0]
@@ -136,7 +152,7 @@ class BTree:
             is_deleted = self._delete_recursive(node.children[i], key)
 
         if not node.leaf and len(node.children[i].keys) < self.min_keys:
-            node._fix_underflow(node, i)
+            self._fix_underflow(node, i)
 
         return is_deleted
     
@@ -187,8 +203,8 @@ class BTree:
         left_child = parent.children[index]
         right_child = parent.children[index + 1]
 
-        left_child.keys.append(parent.keys[index])
-        left_child.offsets.append(parent.offsets[index])
+        left_child.keys.append(parent.keys.pop(index))
+        left_child.offsets.append(parent.offsets.pop(index))
 
         left_child.keys.extend(right_child.keys)
         left_child.offsets.extend(right_child.offsets)
@@ -196,7 +212,10 @@ class BTree:
         if not left_child.leaf:
             left_child.children.extend(right_child.children)
 
-        parent.keys.pop(index + 1)
+        parent.children.pop(index + 1)  
 
     def get_tree_state(self):
-        pass
+        if not self.root.keys:
+            return {}
+        
+        return self.root.to_dict()
