@@ -1,6 +1,6 @@
 import struct
 import os
-from btree import Student
+from b_tree import Student
 
 class BinaryStorage:
     def __init__(self, filename='students.dat'):
