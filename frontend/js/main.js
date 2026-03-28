@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function fetchStudents() {
-    const res = await fetch(`${API_URL}/students`);
+    const res = await fetch(`${API_URL}/students?_=${new Date().getTime()}`);
     const data = await res.json();
     
     const tbody = document.querySelector("#student-table tbody");
@@ -42,8 +42,10 @@ async function addStudent() {
         document.getElementById('add-id').value = '';
         document.getElementById('add-name').value = '';
         document.getElementById('add-gender').value = '';
-        fetchStudents();
-        renderTree(currentTreeType);
+        
+        // Thêm chữ await vào đây để chờ tải xong mới kết thúc
+        await fetchStudents();
+        await renderTree(currentTreeType);
     } else {
         alert("Lỗi: " + result.error);
     }
@@ -93,16 +95,17 @@ async function renderTree(treeType) {
     currentTreeType = treeType;
     document.getElementById("tree-title").innerText = `Cấu trúc Cây B-Tree (Đang xem: ${treeType.toUpperCase()})`;
     
-    // Cập nhật UI nút bấm
     document.getElementById("btn-tree-id").className = treeType === 'id' ? "active-btn" : "";
     document.getElementById("btn-tree-name").className = treeType === 'name' ? "active-btn" : "";
 
-    const res = await fetch(`${API_URL}/btree/${treeType}`);
+    // Thêm timestamp để ép vẽ lại cây B-Tree mới nhất
+    const res = await fetch(`${API_URL}/btree/${treeType}?_=${new Date().getTime()}`);
     const treeData = await res.json();
 
     d3.select("#btree-svg").selectAll("*").remove();
     if (Object.keys(treeData).length === 0) return; 
 
+    // ... (Toàn bộ phần vẽ D3.js phía dưới bạn GIỮ NGUYÊN)
     const svg = d3.select("#btree-svg");
     const width = svg.node().getBoundingClientRect().width || 800;
     const height = 500;
@@ -130,7 +133,6 @@ async function renderTree(treeType) {
         .attr("class", "node")
         .attr("transform", d => `translate(${d.x},${d.y})`);
 
-    // Vẽ hình chữ nhật co giãn theo độ dài của chữ
     node.append("rect")
         .attr("width", d => Math.max(80, d.data.name.length * 8 + 20))
         .attr("height", 30)
