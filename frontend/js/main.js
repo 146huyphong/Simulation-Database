@@ -1,21 +1,17 @@
 const API_URL = "http://127.0.0.1:5000/api";
+let currentTreeType = 'id';
 
-// Hàm chạy ngay khi web load xong
 document.addEventListener("DOMContentLoaded", () => {
     fetchStudents();
-    renderTree();
+    renderTree('id');
 });
-
-// ==========================================
-// 1. CÁC HÀM GIAO TIẾP API (CRUD)
-// ==========================================
 
 async function fetchStudents() {
     const res = await fetch(`${API_URL}/students`);
     const data = await res.json();
     
     const tbody = document.querySelector("#student-table tbody");
-    tbody.innerHTML = ""; // Xóa dữ liệu cũ
+    tbody.innerHTML = ""; 
     
     data.forEach(item => {
         const tr = document.createElement("tr");
@@ -43,14 +39,18 @@ async function addStudent() {
     const result = await res.json();
     if(res.ok) {
         alert("Thêm thành công!");
+        document.getElementById('add-id').value = '';
+        document.getElementById('add-name').value = '';
+        document.getElementById('add-gender').value = '';
         fetchStudents();
-        renderTree();
+        renderTree(currentTreeType);
     } else {
         alert("Lỗi: " + result.error);
     }
 }
 
 async function deleteStudent() {
+    // Luôn xóa bằng ID cho chính xác
     const id = document.getElementById('action-id').value;
     const res = await fetch(`${API_URL}/students/${id}`, { method: 'DELETE' });
     
@@ -58,80 +58,91 @@ async function deleteStudent() {
     if(res.ok) {
         alert("Xóa thành công!");
         fetchStudents();
-        renderTree();
+        renderTree(currentTreeType);
     } else {
         alert("Lỗi: " + result.error);
     }
 }
 
 async function searchStudent() {
+    const type = document.getElementById('search-type').value;
     const query = document.getElementById('action-id').value;
-    // Tạm thời mặc định tìm theo ID để minh họa
-    const res = await fetch(`${API_URL}/search?type=id&query=${query}`);
     
-    const result = await res.json();
+    const res = await fetch(`${API_URL}/search?type=${type}&query=${query}`);
     const resultP = document.getElementById('search-result');
+    resultP.innerHTML = ""; 
     
     if(res.ok) {
-        resultP.innerText = `Tìm thấy! Offset: ${result.offset} - Tên: ${result.student.name}`;
+        const results = await res.json();
+        resultP.style.color = "green";
+        results.forEach(item => {
+            resultP.innerHTML += `<p>✅ Tìm thấy: [Offset ${item.offset}] - ${item.student.student_id} - ${item.student.name}</p>`;
+        });
     } else {
-        resultP.innerText = result.error;
+        const err = await res.json();
+        resultP.style.color = "red";
+        resultP.innerHTML = `<p>❌ ${err.error}</p>`;
     }
 }
 
 // ==========================================
-// 2. HÀM VẼ CÂY B-TREE BẰNG D3.JS
+// HÀM VẼ CÂY B-TREE BẰNG D3.JS
 // ==========================================
 
-async function renderTree() {
-    const res = await fetch(`${API_URL}/btree/id`);
+async function renderTree(treeType) {
+    currentTreeType = treeType;
+    document.getElementById("tree-title").innerText = `Cấu trúc Cây B-Tree (Đang xem: ${treeType.toUpperCase()})`;
+    
+    // Cập nhật UI nút bấm
+    document.getElementById("btn-tree-id").className = treeType === 'id' ? "active-btn" : "";
+    document.getElementById("btn-tree-name").className = treeType === 'name' ? "active-btn" : "";
+
+    const res = await fetch(`${API_URL}/btree/${treeType}`);
     const treeData = await res.json();
 
-    // Xóa cây cũ nếu có
     d3.select("#btree-svg").selectAll("*").remove();
-
-    if (Object.keys(treeData).length === 0) return; // Cây rỗng
+    if (Object.keys(treeData).length === 0) return; 
 
     const svg = d3.select("#btree-svg");
-    const width = svg.node().getBoundingClientRect().width;
+    const width = svg.node().getBoundingClientRect().width || 800;
     const height = 500;
     const margin = {top: 40, right: 20, bottom: 40, left: 20};
 
     const g = svg.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Thiết lập D3 Tree Layout
     const treeLayout = d3.tree().size([width - margin.left - margin.right, height - 100]);
     const root = d3.hierarchy(treeData);
-    
     treeLayout(root);
 
-    // Vẽ các đường nối (Links)
     g.selectAll(".link")
         .data(root.links())
         .enter().append("path")
         .attr("class", "link")
-        .attr("d", d3.linkVertical()
-            .x(d => d.x)
-            .y(d => d.y)
-        );
+        .attr("fill", "none")
+        .attr("stroke", "#ccc")
+        .attr("stroke-width", 2)
+        .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
 
-    // Vẽ các Nút (Nodes)
     const node = g.selectAll(".node")
         .data(root.descendants())
         .enter().append("g")
         .attr("class", "node")
         .attr("transform", d => `translate(${d.x},${d.y})`);
 
-    // Vẽ hình chữ nhật bao quanh Node
+    // Vẽ hình chữ nhật co giãn theo độ dài của chữ
     node.append("rect")
-        .attr("width", 80)
+        .attr("width", d => Math.max(80, d.data.name.length * 8 + 20))
         .attr("height", 30)
-        .attr("x", -40) // Căn giữa chữ nhật theo tọa độ x
-        .attr("y", -15);
+        .attr("x", d => -Math.max(80, d.data.name.length * 8 + 20) / 2)
+        .attr("y", -15)
+        .attr("fill", "white")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 2)
+        .attr("rx", 5);
 
-    // Hiển thị Khóa bên trong Node (Trường 'name' được tạo từ to_dict())
     node.append("text")
         .attr("dy", 5)
+        .attr("text-anchor", "middle")
         .text(d => d.data.name);
 }
