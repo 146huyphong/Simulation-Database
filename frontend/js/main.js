@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:5000/api";
+const API_URL = "https://huyphong1344.pythonanywhere.com/api";
 let currentTreeType = 'id';
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -7,28 +7,54 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function fetchStudents() {
-    const res = await fetch(`${API_URL}/students?_=${new Date().getTime()}`);
-    const data = await res.json();
-    
-    const tbody = document.querySelector("#student-table tbody");
-    tbody.innerHTML = ""; 
-    
-    data.forEach(item => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td><strong>${item.offset}</strong></td>
-            <td>${item.data.student_id}</td>
-            <td>${item.data.name}</td>
-            <td>${item.data.gender}</td>
-        `;
-        tbody.appendChild(tr);
-    });
+    try {
+        const res = await fetch(`${API_URL}/students?_=${new Date().getTime()}`);
+        const data = await res.json();
+        
+        const tbody = document.querySelector("#student-table tbody");
+        tbody.innerHTML = ""; 
+        
+        // Hàm vẽ một dòng vào bảng
+        const renderRow = (item) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${item.offset}</strong></td>
+                <td>${item.data.student_id}</td>
+                <td>${item.data.name}</td>
+                <td>${item.data.gender}</td>
+            `;
+            tbody.appendChild(tr); // Quan trọng: Phải append vào tbody
+        };
+
+        if (data.length <= 10) {
+            data.forEach(renderRow);
+        } else {
+            const top5 = data.slice(0, 5);
+            const bottom5 = data.slice(data.length - 5);
+
+            top5.forEach(renderRow);
+
+            const trDots = document.createElement("tr"); 
+            trDots.innerHTML = `
+                <td colspan="4" style="text-align: center; font-weight: bold; color: #888; background-color: #f9f9f9;">
+                    ... (${data.length - 10} sinh viên khác bị ẩn) ...
+                </td>
+            `;
+            tbody.appendChild(trDots);
+
+            bottom5.forEach(renderRow);
+        }
+    } catch (err) {
+        console.error("Lỗi tải danh sách:", err);
+    }
 }
 
 async function addStudent() {
     const id = document.getElementById('add-id').value;
     const name = document.getElementById('add-name').value;
     const gender = document.getElementById('add-gender').value;
+
+    if(!id || !name) return alert("Vui lòng nhập đủ thông tin");
 
     const res = await fetch(`${API_URL}/students`, {
         method: 'POST',
@@ -43,7 +69,6 @@ async function addStudent() {
         document.getElementById('add-name').value = '';
         document.getElementById('add-gender').value = '';
         
-        // Thêm chữ await vào đây để chờ tải xong mới kết thúc
         await fetchStudents();
         await renderTree(currentTreeType);
     } else {
@@ -52,15 +77,16 @@ async function addStudent() {
 }
 
 async function deleteStudent() {
-    // Luôn xóa bằng ID cho chính xác
     const id = document.getElementById('action-id').value;
+    if(!id) return alert("Vui lòng nhập MSSV để xóa");
+
     const res = await fetch(`${API_URL}/students/${id}`, { method: 'DELETE' });
-    
     const result = await res.json();
+    
     if(res.ok) {
         alert("Xóa thành công!");
-        fetchStudents();
-        renderTree(currentTreeType);
+        await fetchStudents();
+        await renderTree(currentTreeType);
     } else {
         alert("Lỗi: " + result.error);
     }
@@ -69,6 +95,7 @@ async function deleteStudent() {
 async function searchStudent() {
     const type = document.getElementById('search-type').value;
     const query = document.getElementById('action-id').value;
+    if(!query) return alert("Vui lòng nhập từ khóa");
     
     const res = await fetch(`${API_URL}/search?type=${type}&query=${query}`);
     const resultP = document.getElementById('search-result');
@@ -78,18 +105,14 @@ async function searchStudent() {
         const results = await res.json();
         resultP.style.color = "green";
         results.forEach(item => {
-            resultP.innerHTML += `<p>✅ Tìm thấy: [Offset ${item.offset}] - ${item.student.student_id} - ${item.student.name}</p>`;
+            resultP.innerHTML += `<p>Tìm thấy: [Offset ${item.offset}] - ${item.student.student_id} - ${item.student.name}</p>`;
         });
     } else {
         const err = await res.json();
         resultP.style.color = "red";
-        resultP.innerHTML = `<p>❌ ${err.error}</p>`;
+        resultP.innerHTML = `<p>${err.error}</p>`;
     }
 }
-
-// ==========================================
-// HÀM VẼ CÂY B-TREE BẰNG D3.JS
-// ==========================================
 
 async function renderTree(treeType) {
     currentTreeType = treeType;
@@ -98,53 +121,72 @@ async function renderTree(treeType) {
     document.getElementById("btn-tree-id").className = treeType === 'id' ? "active-btn" : "";
     document.getElementById("btn-tree-name").className = treeType === 'name' ? "active-btn" : "";
 
-    // Thêm timestamp để ép vẽ lại cây B-Tree mới nhất
-    const res = await fetch(`${API_URL}/btree/${treeType}?_=${new Date().getTime()}`);
-    const treeData = await res.json();
+    try {
+        const res = await fetch(`${API_URL}/btree/${treeType}?_=${new Date().getTime()}`);
+        const treeData = await res.json();
 
-    d3.select("#btree-svg").selectAll("*").remove();
-    if (Object.keys(treeData).length === 0) return; 
+        const svg = d3.select("#btree-svg");
+        svg.selectAll("*").remove();
 
-    // ... (Toàn bộ phần vẽ D3.js phía dưới bạn GIỮ NGUYÊN)
-    const svg = d3.select("#btree-svg");
-    const width = svg.node().getBoundingClientRect().width || 800;
-    const height = 500;
-    const margin = {top: 40, right: 20, bottom: 40, left: 20};
+        if (Object.keys(treeData).length === 0) return; 
 
-    const g = svg.append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
+        const root = d3.hierarchy(treeData);
+        const numLeaves = root.leaves().length;
+        const dynamicWidth = Math.max(800, numLeaves * 180); 
+        const height = 500;
+        const margin = {top: 40, right: 50, bottom: 40, left: 50};
 
-    const treeLayout = d3.tree().size([width - margin.left - margin.right, height - 100]);
-    const root = d3.hierarchy(treeData);
-    treeLayout(root);
+        svg.attr("width", dynamicWidth).attr("height", height);
+        if (svg.node().parentNode) {
+            svg.node().parentNode.style.overflowX = "auto";
+        }
 
-    g.selectAll(".link")
-        .data(root.links())
-        .enter().append("path")
-        .attr("class", "link")
-        .attr("fill", "none")
-        .attr("stroke", "#ccc")
-        .attr("stroke-width", 2)
-        .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const node = g.selectAll(".node")
-        .data(root.descendants())
-        .enter().append("g")
-        .attr("class", "node")
-        .attr("transform", d => `translate(${d.x},${d.y})`);
+        const treeLayout = d3.tree()
+            .size([dynamicWidth - margin.left - margin.right, height - 100])
+            .separation((a, b) => (a.parent === b.parent ? 1.5 : 2.5));
+        
+        treeLayout(root);
 
-    node.append("rect")
-        .attr("width", d => Math.max(80, d.data.name.length * 8 + 20))
-        .attr("height", 30)
-        .attr("x", d => -Math.max(80, d.data.name.length * 8 + 20) / 2)
-        .attr("y", -15)
-        .attr("fill", "white")
-        .attr("stroke", "steelblue")
-        .attr("stroke-width", 2)
-        .attr("rx", 5);
+        g.selectAll(".link")
+            .data(root.links())
+            .enter().append("path")
+            .attr("class", "link")
+            .attr("fill", "none")
+            .attr("stroke", "#ccc")
+            .attr("stroke-width", 2)
+            .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
 
-    node.append("text")
-        .attr("dy", 5)
-        .attr("text-anchor", "middle")
-        .text(d => d.data.name);
+        const node = g.selectAll(".node")
+            .data(root.descendants())
+            .enter().append("g")
+            .attr("class", "node")
+            .attr("transform", d => `translate(${d.x},${d.y})`);
+
+        node.append("rect")
+            .attr("width", d => {
+                const textLen = d.data.name ? d.data.name.length : 0;
+                return Math.max(80, textLen * 9 + 20);
+            })
+            .attr("height", 30)
+            .attr("x", d => {
+                const textLen = d.data.name ? d.data.name.length : 0;
+                return -Math.max(80, textLen * 9 + 20) / 2;
+            })
+            .attr("y", -15)
+            .attr("fill", "white")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2)
+            .attr("rx", 5);
+
+        node.append("text")
+            .attr("dy", 5)
+            .attr("text-anchor", "middle")
+            .style("font-size", "13px")
+            .style("font-family", "Arial")
+            .text(d => d.data.name);
+    } catch (err) {
+        console.error("Lỗi vẽ cây:", err);
+    }
 }
