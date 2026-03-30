@@ -14,7 +14,6 @@ async function fetchStudents() {
         const tbody = document.querySelector("#student-table tbody");
         tbody.innerHTML = ""; 
         
-        // Hàm vẽ một dòng vào bảng
         const renderRow = (item) => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
@@ -121,72 +120,79 @@ async function renderTree(treeType) {
     document.getElementById("btn-tree-id").className = treeType === 'id' ? "active-btn" : "";
     document.getElementById("btn-tree-name").className = treeType === 'name' ? "active-btn" : "";
 
-    try {
-        const res = await fetch(`${API_URL}/btree/${treeType}?_=${new Date().getTime()}`);
-        const treeData = await res.json();
+    const res = await fetch(`${API_URL}/btree/${treeType}?_=${new Date().getTime()}`);
+    const treeData = await res.json();
 
-        const svg = d3.select("#btree-svg");
-        svg.selectAll("*").remove();
+    const svg = d3.select("#btree-svg");
+    svg.selectAll("*").remove();
+    if (Object.keys(treeData).length === 0) return; 
 
-        if (Object.keys(treeData).length === 0) return; 
+    const root = d3.hierarchy(treeData);
 
-        const root = d3.hierarchy(treeData);
-        const numLeaves = root.leaves().length;
-        const dynamicWidth = Math.max(800, numLeaves * 180); 
-        const height = 500;
-        const margin = {top: 40, right: 50, bottom: 40, left: 50};
+    const treeLayout = d3.tree().nodeSize([250, 120]);
+    treeLayout(root);
 
-        svg.attr("width", dynamicWidth).attr("height", height);
-        if (svg.node().parentNode) {
-            svg.node().parentNode.style.overflowX = "auto";
-        }
+    let minX = 0, maxX = 0, maxY = 0;
+    root.descendants().forEach(d => {
+        if (d.x < minX) minX = d.x;
+        if (d.x > maxX) maxX = d.x;
+        if (d.y > maxY) maxY = d.y;
+    });
 
-        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const dynamicWidth = maxX - minX + 400; 
+    const dynamicHeight = maxY + 200;
 
-        const treeLayout = d3.tree()
-            .size([dynamicWidth - margin.left - margin.right, height - 100])
-            .separation((a, b) => (a.parent === b.parent ? 1.5 : 2.5));
-        
-        treeLayout(root);
-
-        g.selectAll(".link")
-            .data(root.links())
-            .enter().append("path")
-            .attr("class", "link")
-            .attr("fill", "none")
-            .attr("stroke", "#ccc")
-            .attr("stroke-width", 2)
-            .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
-
-        const node = g.selectAll(".node")
-            .data(root.descendants())
-            .enter().append("g")
-            .attr("class", "node")
-            .attr("transform", d => `translate(${d.x},${d.y})`);
-
-        node.append("rect")
-            .attr("width", d => {
-                const textLen = d.data.name ? d.data.name.length : 0;
-                return Math.max(80, textLen * 9 + 20);
-            })
-            .attr("height", 30)
-            .attr("x", d => {
-                const textLen = d.data.name ? d.data.name.length : 0;
-                return -Math.max(80, textLen * 9 + 20) / 2;
-            })
-            .attr("y", -15)
-            .attr("fill", "white")
-            .attr("stroke", "steelblue")
-            .attr("stroke-width", 2)
-            .attr("rx", 5);
-
-        node.append("text")
-            .attr("dy", 5)
-            .attr("text-anchor", "middle")
-            .style("font-size", "13px")
-            .style("font-family", "Arial")
-            .text(d => d.data.name);
-    } catch (err) {
-        console.error("Lỗi vẽ cây:", err);
+    svg.attr("width", dynamicWidth)
+       .attr("height", dynamicHeight);
+    
+    if (svg.node().parentNode) {
+        svg.node().parentNode.style.overflowX = "auto";
+        svg.node().parentNode.style.width = "100%";
     }
+
+    // Dịch chuyển group chính để bù đắp phần tọa độ âm (minX)
+    const g = svg.append("g")
+        .attr("transform", `translate(${-minX + 200}, 50)`);
+
+    // 
+
+    // 5. Vẽ Links
+    g.selectAll(".link")
+        .data(root.links())
+        .enter().append("path")
+        .attr("class", "link")
+        .attr("fill", "none")
+        .attr("stroke", "#999")
+        .attr("stroke-width", 2)
+        .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
+
+    // 6. Vẽ Nodes
+    const node = g.selectAll(".node")
+        .data(root.descendants())
+        .enter().append("g")
+        .attr("class", "node")
+        .attr("transform", d => `translate(${d.x},${d.y})`);
+
+    node.append("rect")
+        .attr("width", d => {
+            const textLen = d.data.name ? d.data.name.length : 0;
+            return Math.max(100, textLen * 10 + 20); // Giãn rộng rect theo chữ
+        })
+        .attr("height", 35)
+        .attr("x", d => {
+            const textLen = d.data.name ? d.data.name.length : 0;
+            return -Math.max(100, textLen * 10 + 20) / 2;
+        })
+        .attr("y", -17.5)
+        .attr("fill", "#fff")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 2)
+        .attr("rx", 8);
+
+    node.append("text")
+        .attr("dy", 5)
+        .attr("text-anchor", "middle")
+        .style("font-family", "monospace")
+        .style("font-weight", "bold")
+        .text(d => d.data.name);
 }

@@ -37,6 +37,13 @@ body {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
+.card input {
+    width: 100%;            
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
 .tree-card {
     height: 100%;
 }
@@ -99,13 +106,28 @@ th { background-color: #f2f2f2; }
 }
 
 .tree-card {
-    overflow-x: auto; /* Cho phép cuộn ngang khi cây quá rộng */
+    width: 100%;
+    overflow-x: auto; 
+    overflow-y: hidden;
+    background: #fdfdfd;
     border: 1px solid #ddd;
-    background: #fff;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 550px;
 }
 
 #btree-svg {
     display: block;
-    margin: 0 auto;
+    /* Không dùng width: 100% ở đây vì SVG sẽ bị bóp méo */
+}
+
+#student-table th:nth-child(3), 
+#student-table td:nth-child(3) {
+    min-width: 250px; 
+    text-align: left;
+}
+
+#student-table {
+    width: 100%;
+    table-layout: auto;
 }
