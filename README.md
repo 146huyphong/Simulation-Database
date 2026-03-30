@@ -3,7 +3,7 @@
 > Mô phỏng ứng dụng cấu trúc dữ liệu B-Tree vào việc tối ưu hóa lập chỉ mục và thao tác trực tiếp trên Cơ sở dữ liệu tệp nhị phân.
 
 ## 🚀 Live Demo
-🌐 **[Trải nghiệm trực tiếp dự án tại đây]([https://leafy-liger-fd5843.netlify.app/])**
+🌐 **[Trải nghiệm trực tiếp dự án tại đây](https://leafy-liger-fd5843.netlify.app/)**
 
 *(Lưu ý: Hệ thống sử dụng Backend được host trên PythonAnywhere, có thể mất vài giây để khởi động trong lần truy cập đầu tiên).*
 
