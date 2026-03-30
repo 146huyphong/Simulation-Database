@@ -22,7 +22,7 @@ async function fetchStudents() {
                 <td>${item.data.name}</td>
                 <td>${item.data.gender}</td>
             `;
-            tbody.appendChild(tr); // Quan trọng: Phải append vào tbody
+            tbody.appendChild(tr); 
         };
 
         if (data.length <= 10) {
@@ -62,8 +62,16 @@ async function addStudent() {
     });
 
     const result = await res.json();
-    if(res.ok) {
-        alert("Thêm thành công!");
+    if (res.ok) {
+        // Thông báo xịn có Tiêu đề, Nội dung và Icon
+        Swal.fire({
+            title: "Thêm thành công!",
+            text: "Sinh viên đã được cập nhật vào cây B-Tree",
+            icon: "success",
+            timer: 2000,             // Tự động tắt sau 2 giây
+            showConfirmButton: false // Ẩn nút OK cho mượt
+        });
+
         document.getElementById('add-id').value = '';
         document.getElementById('add-name').value = '';
         document.getElementById('add-gender').value = '';
@@ -71,7 +79,12 @@ async function addStudent() {
         await fetchStudents();
         await renderTree(currentTreeType);
     } else {
-        alert("Lỗi: " + result.error);
+        Swal.fire({
+            title: "Không thể thêm!",
+            text: result.error,
+            icon: "error",
+            confirmButtonText: "Đã hiểu"
+        });
     }
 }
 
@@ -82,12 +95,24 @@ async function deleteStudent() {
     const res = await fetch(`${API_URL}/students/${id}`, { method: 'DELETE' });
     const result = await res.json();
     
-    if(res.ok) {
-        alert("Xóa thành công!");
+    if (res.ok) {
+        Swal.fire({
+            title: "Xóa thành công!",
+            text: "Dữ liệu sinh viên đã được loại bỏ khỏi hệ thống B-Tree.",
+            icon: "success",
+            timer: 2000,             
+            showConfirmButton: false
+        });
+        
         await fetchStudents();
         await renderTree(currentTreeType);
     } else {
-        alert("Lỗi: " + result.error);
+        Swal.fire({
+            title: "Xóa thất bại!",
+            text: result.error,
+            icon: "error",
+            confirmButtonText: "Đã hiểu"
+        });
     }
 }
 
@@ -150,13 +175,10 @@ async function renderTree(treeType) {
         svg.node().parentNode.style.width = "100%";
     }
 
-    // Dịch chuyển group chính để bù đắp phần tọa độ âm (minX)
     const g = svg.append("g")
         .attr("transform", `translate(${-minX + 200}, 50)`);
 
-    // 
 
-    // 5. Vẽ Links
     g.selectAll(".link")
         .data(root.links())
         .enter().append("path")
@@ -166,7 +188,6 @@ async function renderTree(treeType) {
         .attr("stroke-width", 2)
         .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
 
-    // 6. Vẽ Nodes
     const node = g.selectAll(".node")
         .data(root.descendants())
         .enter().append("g")

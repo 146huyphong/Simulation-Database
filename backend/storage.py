@@ -57,7 +57,6 @@ class BinaryStorage:
                     self._pack_string(student.student_id, 10),
                     self._pack_string(student.name, 50),
                     self._pack_string(student.gender, 10),
-                    True # Đánh dấu xóa mềm
                 )
                 f.write(data)
 
